@@ -1,0 +1,49 @@
+/* SolarRoof · base styles — STARTED. Refine freely (spacing, colours, mobile). */
+:root {
+  --sun:#F5A623; --sky:#1C7293; --ink:#1f2933; --muted:#6b7280;
+  --bg:#f7f8fa; --card:#fff;
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.5; }
+
+header { background:linear-gradient(135deg,var(--sky),#145063); color:#fff;
+  text-align:center; padding:28px 20px; }
+header h1 { margin:0 0 6px; font-size:2rem; }
+header p { margin:0; opacity:.9; }
+
+main { max-width:960px; margin:24px auto; padding:0 16px;
+  display:grid; gap:18px; grid-template-columns:1fr 1fr; }
+.card { background:var(--card); border:1px solid #e5e7eb; border-radius:12px; padding:20px; }
+.card.full { grid-column:1/-1; }
+.card h2 { margin-top:0; font-size:1.1rem; }
+
+#map { height:340px; border-radius:10px; background:#e8eef1; }
+
+label { display:block; margin:12px 0; font-weight:600; font-size:.9rem; }
+input, select { width:100%; margin-top:4px; padding:9px 10px; font-size:1rem;
+  border:1px solid #d1d5db; border-radius:8px; font-weight:400; }
+.field-label { font-weight:600; font-size:.9rem; margin:12px 0 6px; }
+.muted { color:var(--muted); font-size:.88rem; }
+
+.orient-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; max-width:220px; }
+.orient { padding:12px 0; border:1px solid #d1d5db; background:#fff; border-radius:8px;
+  cursor:pointer; font-weight:600; }
+.orient:hover { border-color:var(--sun); }
+.orient.selected { background:var(--sun); color:#fff; border-color:var(--sun); }
+.orient-center { display:grid; place-items:center; color:var(--muted); }
+
+button.primary { width:100%; padding:14px; font-size:1.05rem; font-weight:700; color:#fff;
+  background:var(--sun); border:none; border-radius:10px; cursor:pointer; }
+button.ghost { margin:10px 8px 0 0; padding:8px 14px; border:1px solid var(--sky);
+  background:#fff; color:var(--sky); border-radius:8px; cursor:pointer; }
+
+.hidden { display:none; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:10px; margin:16px 0; }
+.stat { background:#f9fafb; border-radius:10px; padding:12px; }
+.stat span { display:block; font-size:.75rem; color:var(--muted); }
+.stat b { display:block; font-size:1.15rem; margin-top:4px; }
+.stat.hot { background:#fff7e6; border:1px solid var(--sun); }
+
+@media (max-width:720px){ main { grid-template-columns:1fr; } }

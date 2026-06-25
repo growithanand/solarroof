@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SolarRoof — Solar Potential Calculator</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>☀️ SolarRoof</h1>
+    <p>Estimate your rooftop solar potential — free, open, no signup.</p>
+  </header>
+
+  <main>
+    <!-- Step 1 — Location (map.js) -->
+    <section class="card full">
+      <h2>1 · Where is your roof?</h2>
+      <div id="map"></div>
+      <button id="gps-btn" class="ghost">📍 Use my location</button>
+      <span id="coords" class="muted">Click the map to place a pin.</span>
+    </section>
+
+    <!-- Step 2 — Roof inputs (inputs.js) -->
+    <section class="card">
+      <h2>2 · Your roof</h2>
+      <label>Usable area (m²)
+        <input id="roof-area" type="number" min="1" max="500" placeholder="e.g. 40" />
+      </label>
+      <label>Pitch angle (°)
+        <input id="roof-pitch" type="number" min="0" max="90" placeholder="e.g. 32" />
+      </label>
+      <label>Panel efficiency
+        <select id="panel-efficiency">
+          <option value="0.18">Standard (18%)</option>
+          <option value="0.20" selected>Good (20%)</option>
+          <option value="0.22">Premium (22%)</option>
+        </select>
+      </label>
+      <p class="field-label">Orientation</p>
+      <div class="orient-grid">
+        <button class="orient" data-dir="NW">NW</button>
+        <button class="orient" data-dir="N">N</button>
+        <button class="orient" data-dir="NE">NE</button>
+        <button class="orient" data-dir="W">W</button>
+        <span class="orient-center">＋</span>
+        <button class="orient" data-dir="E">E</button>
+        <button class="orient" data-dir="SW">SW</button>
+        <button class="orient selected" data-dir="S">S</button>
+        <button class="orient" data-dir="SE">SE</button>
+      </div>
+    </section>
+
+    <!-- Step 3 — Results (engine.js + finance.js + charts.js) -->
+    <section class="card">
+      <h2>3 · Result</h2>
+      <button id="calculate-btn" class="primary">Calculate →</button>
+      <div id="results" class="hidden">
+        <div class="stats">
+          <div class="stat"><span>Annual production</span><b id="r-annual">—</b></div>
+          <div class="stat"><span>System cost</span><b id="r-cost">—</b></div>
+          <div class="stat"><span>Yearly savings</span><b id="r-savings">—</b></div>
+          <div class="stat hot"><span>Payback period</span><b id="r-payback">—</b></div>
+          <div class="stat"><span>CO₂ avoided</span><b id="r-co2">—</b></div>
+        </div>
+        <canvas id="chart-monthly" height="170"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <!-- Load order: app (foundation) first, then the modules -->
+  <script src="js/app.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/inputs.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/finance.js"></script>
+  <script src="js/charts.js"></script>
+</body>
+</html>
