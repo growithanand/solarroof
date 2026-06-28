@@ -1,11 +1,7 @@
 /* =============================================================================
-   SolarRoof · inputs.js  —  the roof form            [ STARTED — continue here ]
+   SolarRoof · inputs.js  —  the roof form
 
-   Done:    reads roof area (worked example to copy).
-   To do:   read pitch + efficiency the same way, and wire the 8 orientation
-            buttons so a click sets AppState.roof.azimuth.
-
-   Pattern for every field:  read value → save to AppState.roof → that's it.
+   Reads all roof input values and stores them in AppState.roof.
    ========================================================================== */
 
 const Inputs = {
@@ -13,19 +9,32 @@ const Inputs = {
   ORIENT: { S:0, SE:-45, E:-90, NE:-135, N:180, NW:135, W:90, SW:45 },
 
   init() {
-    // Worked example — copy this for pitch and efficiency:
+    // Roof area
     document.getElementById('roof-area')
-      .addEventListener('input', e => { AppState.roof.area = parseFloat(e.target.value) || null; });
+      .addEventListener('input', e => {
+        AppState.roof.area = parseFloat(e.target.value) || null;
+      });
 
-    // TODO: same for #roof-pitch  → AppState.roof.pitch
-    // TODO: same for #panel-efficiency → AppState.roof.efficiency (parseFloat)
+    // Roof pitch
+    document.getElementById('roof-pitch')
+      .addEventListener('input', e => {
+        AppState.roof.pitch = parseFloat(e.target.value) || null;
+      });
 
-    // TODO: orientation buttons
-    // document.querySelectorAll('.orient').forEach(btn =>
-    //   btn.addEventListener('click', () => {
-    //     document.querySelectorAll('.orient').forEach(b => b.classList.remove('selected'));
-    //     btn.classList.add('selected');
-    //     AppState.roof.azimuth = this.ORIENT[btn.dataset.dir];
-    //   }));
+    // Panel efficiency
+    document.getElementById('panel-efficiency')
+      .addEventListener('change', e => {
+        AppState.roof.efficiency = parseFloat(e.target.value);
+      });
+
+    // Orientation buttons
+    document.querySelectorAll('.orient').forEach(btn =>
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.orient').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        AppState.roof.azimuth = this.ORIENT[btn.dataset.dir];
+      })
+    );
   }
 };
