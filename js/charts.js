@@ -1,51 +1,43 @@
 /* =============================================================================
-   SolarRoof · charts.js  —  Chart.js visuals        [ IMPLEMENTED ]
-
-   monthly(data) draws a 12-bar chart of monthly kWh on <canvas id="chart-monthly">.
-   Docs: https://www.chartjs.org/docs/latest/
+   SolarRoof · js/charts.js  —  Chart.js visuals
+   Draws the hourly (typical summer day) and monthly production charts on
+   the results screen. Called from js/finance.js's renderResults().
    ========================================================================== */
 
-const Charts = {
-  _monthly: null,
-  MONTHS: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+let hourlyChart = null, monthlyChart = null;
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  monthly(data) {
-    if (!data || !data.length) return;
+function renderCharts() {
+  const r = AppState.result;
 
-    if (this._monthly) this._monthly.destroy();
+  if (hourlyChart) hourlyChart.destroy();
+  hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+    type: 'line',
+    data: {
+      labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+      datasets: [{
+        label: 'kWh', data: r.hourlyKwh, borderColor: '#f59e0b',
+        backgroundColor: 'rgba(245,158,11,0.15)', fill: true, tension: 0.35, pointRadius: 0
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true }, x: { ticks: { maxTicksLimit: 8 } } }
+    }
+  });
 
-    const ctx = document.getElementById('chart-monthly');
-    this._monthly = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: this.MONTHS,
-        datasets: [{
-          label: 'Estimated production (kWh)',
-          data: data,
-          backgroundColor: '#F5A623',
-          borderRadius: 6,
-          maxBarThickness: 34
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.parsed.y.toLocaleString()} kWh`
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: v => `${v} kWh` },
-            grid: { color: '#eef1f4' }
-          },
-          x: { grid: { display: false } }
-        }
-      }
-    });
-  }
-};
+  if (monthlyChart) monthlyChart.destroy();
+  monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [{ label: 'kWh', data: r.monthlyKwh, backgroundColor: '#f59e0b', borderRadius: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+}

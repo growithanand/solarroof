@@ -1,74 +1,82 @@
 /* =============================================================================
-   SolarRoof · engine.js  —  energy estimate         [ IMPLEMENTED ]
-
-   estimate() returns a Promise resolving to:
-     { annualKwh, monthlyKwh: [12 values], peakKwp, source: 'pvgis' | 'formula' }
-
-   Plan:
-     1. peakKwp = roof area × efficiency factor  (≈0.15 kWp per m² at 20%)
-     2. Call the EU PVGIS API for real satellite yield (±5%)
-     3. If the API fails/times out, fall back to a simple formula so the app
-        still works offline.
+   SolarRoof · js/engine.js  —  energy estimate
+   Calls PVGIS (through the /api/pvgis proxy in server.js) for real satellite
+   yield, with an offline formula fallback if PVGIS is slow or unavailable.
+   Reads AppState.location/roof (js/state.js), hands the result to
+   js/finance.js's computeFinance() and renderResults().
    ========================================================================== */
 
-const Engine = {
-  // Roughly: 1 m² of panel at X% efficiency ≈ X kWp per m² (1000 W/m² STC).
-  peakKwp() {
-    const { area, efficiency } = AppState.roof;
-    if (!area) return null;
-    return +(area * (efficiency || 0.20)).toFixed(2);
-  },
+function peakKwp() {
+  const { area, efficiency } = AppState.roof;
+  return +(area * (efficiency || 0.20)).toFixed(2);
+}
 
-  async estimate() {
+async function estimateByPVGIS(lat, lon, kwp, angle, aspect) {
+  // Call PVGIS through our own /api/pvgis proxy (see server.js) instead of
+  // hitting re.jrc.ec.europa.eu directly — the browser blocks that with a
+  // CORS error since PVGIS doesn't send Access-Control-Allow-Origin.
+  const url = `/api/pvgis` +
+    `?lat=${lat}&lon=${lon}&peakpower=${kwp}&loss=22&angle=${angle}&aspect=${aspect}&outputformat=json`;
+  console.log('[Engine] PVGIS request:', url);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const res = await fetch(url, { signal: controller.signal });
+  clearTimeout(timeoutId);
+  if (!res.ok) throw new Error('PVGIS HTTP ' + res.status);
+  const data = await res.json();
+  console.log('[Engine] PVGIS response:', data);
+  const annualKwh = Math.round(data.outputs.totals.fixed.E_y);
+  const monthlyKwh = data.outputs.monthly.fixed.map(m => Math.round(m.E_m));
+  return { annualKwh, monthlyKwh, source: 'pvgis' };
+}
+
+function estimateByFormula(kwp, lat) {
+  const latitude = lat ?? 50;
+  const specificYield = Math.max(700, 1100 - (latitude - 40) * 8);
+  const annualKwh = Math.round(kwp * specificYield);
+  const weights = [0.03,0.05,0.07,0.09,0.11,0.12,0.12,0.11,0.09,0.07,0.04,0.03];
+  const monthlyKwh = weights.map(w => Math.round(annualKwh * w));
+  return { annualKwh, monthlyKwh, source: 'formula' };
+}
+
+// Rough hourly shape for a typical summer day, scaled to the peak month.
+function hourlyShape(peakMonthKwh) {
+  const dailyAvg = peakMonthKwh / 30;
+  const weights = [0,0,0,0,0,0.02,0.06,0.12,0.18,0.22,0.24,0.24,0.22,0.20,0.16,0.11,0.06,0.02,0,0,0,0,0,0];
+  const scale = dailyAvg / weights.reduce((a, b) => a + b, 0);
+  return weights.map(w => +(w * scale).toFixed(2));
+}
+
+async function runCalculation() {
+  const btn = document.querySelector('#step3 .btn-primary');
+  const originalText = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="loader"></span> ${t('calculating')}`; }
+
+  try {
     const { lat, lon } = AppState.location;
     const { pitch, azimuth } = AppState.roof;
-    const peakKwp = this.peakKwp();
+    const kwp = peakKwp();
 
-    if (!peakKwp) return null; // no roof area entered yet
-    if (lat == null || lon == null) return null; // no location pinned yet
-
+    let energy;
     try {
-      const result = await this.estimateByPVGIS(lat, lon, peakKwp, pitch ?? 30, azimuth ?? 0);
-      return { ...result, peakKwp, source: 'pvgis' };
+      energy = await estimateByPVGIS(lat, lon, kwp, pitch, azimuth);
     } catch (err) {
-      console.warn('[Engine] PVGIS unavailable, falling back to formula:', err);
-      const result = this.estimateByFormula(peakKwp, lat);
-      return { ...result, peakKwp, source: 'formula' };
+      console.warn('[Engine] PVGIS unavailable, using formula fallback:', err);
+      energy = estimateByFormula(kwp, lat);
     }
-  },
 
-  async estimateByPVGIS(lat, lon, peakKwp, angle, aspect) {
-    const url = `https://re.jrc.ec.europa.eu/api/v5_2/PVcalc` +
-      `?lat=${lat}&lon=${lon}&peakpower=${peakKwp}&loss=22` +
-      `&angle=${angle}&aspect=${aspect}&outputformat=json`;
+    AppState.result.annualKwh = energy.annualKwh;
+    AppState.result.monthlyKwh = energy.monthlyKwh;
+    AppState.result.hourlyKwh = hourlyShape(Math.max(...energy.monthlyKwh));
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    if (!res.ok) throw new Error(`PVGIS HTTP ${res.status}`);
-    const data = await res.json();
-
-    const annualKwh = Math.round(data.outputs.totals.fixed.E_y);
-    const monthlyKwh = data.outputs.monthly.fixed.map(m => Math.round(m.E_m));
-
-    return { annualKwh, monthlyKwh };
-  },
-
-  // Offline fallback: rough monthly irradiance shape for temperate Europe,
-  // scaled by latitude (lower sun angle further north = less annual yield).
-  estimateByFormula(peakKwp, lat) {
-    // Baseline specific yield (kWh per kWp per year) tapering with latitude.
-    const latitude = lat ?? 50;
-    const specificYield = Math.max(700, 1100 - (latitude - 40) * 8); // ~kWh/kWp/yr
-    const annualKwh = Math.round(peakKwp * specificYield);
-
-    // Relative monthly weights for a northern-hemisphere temperate climate.
-    const weights = [0.03, 0.05, 0.07, 0.09, 0.11, 0.12, 0.12, 0.11, 0.09, 0.07, 0.04, 0.03];
-    const monthlyKwh = weights.map(w => Math.round(annualKwh * w));
-
-    return { annualKwh, monthlyKwh };
+    AppState.result._source = energy.source;
+    computeFinance(kwp, energy.annualKwh);
+    renderResults(kwp, energy.source);
+    goStep(4);
+  } catch (err) {
+    console.error('[Engine] calculation failed', err);
+    showToast(t('calcFailed'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
   }
-};
+}
